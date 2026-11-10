@@ -1,6 +1,6 @@
 // Przetwarza surowe dane z Overpass (data/raw/*.json) do kompaktowego public/data/poznan.json.
 // Uruchom: npm run osm:build
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import {
   encodePolyline,
   linesIntersect,
@@ -257,6 +257,7 @@ async function main() {
     river,
   };
   const json = JSON.stringify(out);
+  await mkdir('public/data', { recursive: true });
   await writeFile('public/data/poznan.json', json);
   const counted = segs.filter((s) => s[5]).length;
   console.log(
