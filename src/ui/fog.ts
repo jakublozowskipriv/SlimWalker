@@ -94,7 +94,10 @@ export class Fog {
   private drift = 0;
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  constructor(private map: MlMap) {
+  private map: MlMap;
+
+  constructor(map: MlMap) {
+    this.map = map;
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'fog-canvas';
     this.ctx = this.canvas.getContext('2d')!;

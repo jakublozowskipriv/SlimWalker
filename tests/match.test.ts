@@ -69,6 +69,25 @@ describe('dopasowanie śladu do ulic', () => {
     expect(fresh).toEqual([]);
   });
 
+  it('gęsty, zaszumiony ślad (1 punkt/s) nie rwie się na kawałki', () => {
+    // 1,4 m/s, punkt co 1,4 m, szum ±6 m → chwilowe „prędkości” między punktami bywają > 7 m/s
+    const pts = walk([[0, 100], [300, 100]], { step: 1.4, noise: 6 });
+    const pieces = cleanTrack(pts);
+    expect(pieces).toHaveLength(1);
+    expect(walkedDistance(pts)).toBeGreaterThan(250);
+    expect(walkedDistance(pts)).toBeLessThan(380);
+  });
+
+  it('spacer, potem tramwaj, potem spacer — liczą się tylko spacery', () => {
+    const t0 = Date.UTC(2026, 5, 1, 10);
+    const a = walk([[0, 0], [100, 0]], { t0 });
+    const tram = walk([[100, 0], [300, 0], [300, 300]], { t0: t0 + 72e3, speed: 10, step: 20 });
+    const b = walk([[300, 300], [200, 300]], { t0: t0 + 72e3 + 50e3 });
+    const d = walkedDistance([...a, ...tram, ...b]);
+    expect(d).toBeGreaterThan(120);
+    expect(d).toBeLessThan(260);
+  });
+
   it('skok GPS (teleport) nie tworzy fałszywego odcinka', () => {
     const pts = [...walk([[0, 0], [20, 0]]), ...walk([[280, 300], [300, 300]], { t0: Date.UTC(2026, 5, 1, 10, 0, 20) })];
     expect(cleanTrack(pts).length).toBe(2);

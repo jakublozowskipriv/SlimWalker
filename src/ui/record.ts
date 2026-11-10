@@ -18,6 +18,8 @@ import { navIcons } from './icons.ts';
 interface Opts {
   onFinish: (pts: TrackPoint[]) => void | Promise<void>;
   onPosition?: (ll: LonLat) => void;
+  /** Podgląd na żywo: ślad (punkty) do dopasowania, wołany co kilka punktów. */
+  onLiveTrack?: (pts: TrackPoint[]) => void;
   toast: (m: string, ms?: number) => void;
 }
 
@@ -33,11 +35,15 @@ export class Recorder {
   private startedAt = 0;
   private lastSave = 0;
   private lastAcc: number | null = null;
+  /** Mapa podąża za pozycją, dopóki użytkownik sam jej nie przesunie. */
+  follow = true;
+  private cmap: CityMap;
+  private opts: Opts;
 
-  constructor(
-    private cmap: CityMap,
-    private opts: Opts,
-  ) {
+  constructor(cmap: CityMap, opts: Opts) {
+    this.cmap = cmap;
+    this.opts = opts;
+    cmap.map.on('dragstart', () => (this.follow = false));
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && this.recording) this.requestWake();
     });
@@ -80,6 +86,7 @@ export class Recorder {
         const ll: LonLat = [p.coords.longitude, p.coords.latitude];
         this.ensureMarker(ll);
         this.opts.onPosition?.(ll);
+        this.follow = true;
         this.cmap.map.easeTo({ center: ll, zoom: Math.max(this.cmap.map.getZoom(), 15), duration: 800 });
       },
       (e) => this.opts.toast(e.code === 1 ? 'Brak zgody na lokalizację (Ustawienia → Safari → Lokalizacja)' : 'Nie udało się ustalić pozycji'),
@@ -102,6 +109,7 @@ export class Recorder {
       this.points = [];
       this.startedAt = Date.now();
     }
+    this.follow = true;
     document.body.classList.add('is-recording');
     this.renderHud();
     void this.requestWake();
@@ -126,7 +134,9 @@ export class Recorder {
     this.ensureMarker(ll);
     this.opts.onPosition?.(ll);
     if (this.points.length === 0) this.cmap.map.easeTo({ center: ll, zoom: 16, duration: 900 });
+    else if (this.follow) this.cmap.map.easeTo({ center: ll, duration: 600 });
     this.points.push(pt);
+    if (this.points.length % 8 === 0) this.opts.onLiveTrack?.(this.points);
     // podgląd odsłaniania mgły na żywo
     const pieces = cleanTrack(this.points).map((pc) => simplify(pc, 2).map((q) => toLonLat(q[0], q[1])));
     this.cmap.fog.setLive(pieces);

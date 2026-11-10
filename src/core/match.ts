@@ -88,10 +88,23 @@ export function buildIndex(segs: Seg[]): SampleIndex {
   return { total, offset, count, x, y, axis, seg, grid };
 }
 
-/** Dzieli ślad na ciągłe kawałki „pieszo”: odrzuca szybkie przejazdy, skoki i słabe fixy. */
+/** Okno do oceny prędkości: pojedyncze pary punktów GPS są zbyt zaszumione. */
+const SPEED_WINDOW_S = 30;
+/** Pojedynczy skok dalej niż tyle i szybciej niż MAX_WALK_SPEED to „teleport” GPS. */
+const JUMP_M = 80;
+
+/**
+ * Dzieli ślad na ciągłe kawałki „pieszo”:
+ *  1. odrzuca słabe fixy (acc > maxAcc) i duplikaty,
+ *  2. tnie na skokach GPS i długich przerwach,
+ *  3. usuwa fragmenty, w których średnia prędkość w oknie ~30 s przekracza
+ *     MAX_WALK_SPEED (tramwaj, auto). Średnia z okna, a nie z pary punktów,
+ *     bo drgania GPS przy 1 punkcie/s dają chwilowo 7–10 m/s nawet na stojąco.
+ */
 export function cleanTrack(pts: TrackPoint[], maxAcc = 50): XY[][] {
-  const pieces: XY[][] = [];
-  let cur: XY[] = [];
+  type P = { xy: XY; t?: number };
+  const runs: P[][] = [];
+  let cur: P[] = [];
   let prev: TrackPoint | null = null;
   for (const p of pts) {
     if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
@@ -100,17 +113,42 @@ export function cleanTrack(pts: TrackPoint[], maxAcc = 50): XY[][] {
       const d = haversine([prev.lon, prev.lat], [p.lon, p.lat]);
       if (d < 0.5) continue;
       const dt = prev.t != null && p.t != null ? (p.t - prev.t) / 1000 : null;
-      const tooFast = dt != null && dt > 0 && d / dt > MAX_WALK_SPEED;
-      const gap = dt == null ? d > MAX_GAP_M : dt > 300 && d > MAX_GAP_M;
-      if (tooFast || gap) {
-        if (cur.length > 1) pieces.push(cur);
+      const jump = d > JUMP_M && (dt == null ? d > MAX_GAP_M : dt <= 0 || d / dt > MAX_WALK_SPEED);
+      const gap = dt != null && dt > 300 && d > MAX_GAP_M;
+      if (jump || gap) {
+        if (cur.length > 1) runs.push(cur);
         cur = [];
       }
     }
-    cur.push(toXY(p.lon, p.lat));
+    cur.push({ xy: toXY(p.lon, p.lat), t: p.t });
     prev = p;
   }
-  if (cur.length > 1) pieces.push(cur);
+  if (cur.length > 1) runs.push(cur);
+
+  const pieces: XY[][] = [];
+  for (const run of runs) {
+    const timed = run.every((q) => q.t != null);
+    const fast = new Uint8Array(run.length);
+    if (timed) {
+      let j = 0;
+      for (let i = 0; i < run.length; i++) {
+        if (j < i) j = i;
+        while (j < run.length - 1 && run[j].t! - run[i].t! < SPEED_WINDOW_S * 1000) j++;
+        const dt = (run[j].t! - run[i].t!) / 1000;
+        if (dt < 10) continue; // za krótko, by ocenić — zostawiamy
+        const v = dist(run[i].xy, run[j].xy) / dt;
+        if (v > MAX_WALK_SPEED) for (let k = i; k <= j; k++) fast[k] = 1;
+      }
+    }
+    let piece: XY[] = [];
+    run.forEach((q, i) => {
+      if (fast[i]) {
+        if (piece.length > 1) pieces.push(piece);
+        piece = [];
+      } else piece.push(q.xy);
+    });
+    if (piece.length > 1) pieces.push(piece);
+  }
   return pieces;
 }
 
@@ -173,10 +211,9 @@ export function matchPieces(index: SampleIndex, pieces: XY[][]): Set<number> {
 
 export class Coverage {
   bits: Uint8Array;
-  constructor(
-    public index: SampleIndex,
-    bits?: Uint8Array,
-  ) {
+  index: SampleIndex;
+  constructor(index: SampleIndex, bits?: Uint8Array) {
+    this.index = index;
     this.bits = bits && bits.length === Math.ceil(index.total / 8) ? bits : new Uint8Array(Math.ceil(index.total / 8));
   }
   has(j: number) {

@@ -164,11 +164,10 @@ export class CityMap {
   fog!: Fog;
   ready: Promise<void>;
   private labels: maplibregl.Marker[] = [];
+  private city: CityData;
 
-  constructor(
-    el: HTMLElement,
-    private city: CityData,
-  ) {
+  constructor(el: HTMLElement, city: CityData) {
+    this.city = city;
     const lls = city.city.ll.flat();
     const lons = lls.map((p) => p[0]),
       lats = lls.map((p) => p[1]);

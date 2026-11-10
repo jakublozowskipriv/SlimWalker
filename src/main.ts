@@ -13,6 +13,7 @@ import { renderDistricts } from './ui/districts.ts';
 import { renderSeals } from './ui/seals.ts';
 import { Recorder } from './ui/record.ts';
 import { getKV, setKV } from './store.ts';
+import { Coverage, matchTrack } from './core/match.ts';
 
 const engine = new Engine();
 const app = $('#app');
@@ -192,6 +193,12 @@ async function boot() {
       summarySheet([r], 0);
     },
     onPosition: (ll) => (here = ll),
+    onLiveTrack: (pts) => {
+      // podgląd: kopia pokrycia + bieżący ślad → ulice świecą już w trakcie spaceru
+      const preview = new Coverage(engine.index, engine.cov.bits.slice());
+      preview.apply(matchTrack(engine.index, pts));
+      cmap.setDiscovered(preview.discoveredSet());
+    },
     toast,
   });
   $('#btn-walk').onclick = () => recorder.toggle();
