@@ -32,9 +32,9 @@ export class Recorder {
   private wake: WakeLockSentinel | null = null;
   private marker: maplibregl.Marker | null = null;
   private timer = 0;
-  private startedAt = 0;
+  startedAt = 0;
   private lastSave = 0;
-  private lastAcc: number | null = null;
+  lastAcc: number | null = null;
   /** Mapa podąża za pozycją, dopóki użytkownik sam jej nie przesunie. */
   follow = true;
   private cmap: CityMap;

@@ -86,6 +86,7 @@ const G = {
   compass: `<circle r="15" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0-12 4 0 0 12-4 0z" fill="currentColor"/>`,
   sun: `<circle r="6" fill="currentColor"/><path d="M0-16v5M0 11v5M-16 0h5M11 0h5M-11-11l3.5 3.5M7.5 7.5 11 11M-11 11l3.5-3.5M7.5-7.5 11-11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
   boot: `<path d="M-10-15h9v15l12 4c4 1 5 4 5 7v3h-26z" fill="currentColor"/>`,
+  chest: `<path d="M-15-2h30v15h-30zM-15-2c0-9 30-9 30 0M-3 3h6v5h-6z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>`,
   map: `<path d="M-16-11 -5-15 5-11 16-15v26L5 15-5 11-16 15z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M-5-15v26M5-11v26" stroke="currentColor" stroke-width="1.6"/>`,
 };
 
@@ -94,6 +95,7 @@ export function evaluateSeals(
   cov: Coverage,
   progress: ProgressReport,
   walks: WalkLike[],
+  extra: { treasures?: number } = {},
 ): SealState[] {
   const disc = progress.discovered;
   const banks = new Set<number>();
@@ -134,6 +136,7 @@ export function evaluateSeals(
     mk('cartographer', 'Kartograf', 'Odsłoń 25% miasta', G.compass, progress.city.pct, 25, pctLbl(progress.city.pct, 25)),
     mk('dawn', 'Ranny ptaszek', 'Wyjdź na spacer przed 6:00', G.sun, dawn ? 1 : 0, 1, dawn ? 'zdobyta o świcie' : 'czeka na świt'),
     mk('wanderer', 'Wędrowiec', 'Przejdź łącznie 100 km', G.boot, totalKm, 100, `${Math.floor(Math.min(totalKm, 100))} z 100 km`),
+    mk('treasure', 'Poszukiwacz skarbów', 'Znajdź 10 skarbów ukrytych we mgle', G.chest, extra.treasures ?? 0, 10, `${Math.min(extra.treasures ?? 0, 10)} z 10 skarbów`),
     mk('ten-districts', 'Dziesięć osiedli', 'Postaw stopę w 10 osiedlach', G.map, visitedDistricts, 10, `${Math.min(visitedDistricts, 10)} z 10 osiedli`),
   ];
 }

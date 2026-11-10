@@ -62,3 +62,32 @@ describe('pieczęcie', () => {
     expect(first.label).toBe('4 z 10 ulic');
   });
 });
+
+import { findTreasures } from '../src/core/treasures.ts';
+import { TREASURES, FIND_RADIUS_M } from '../src/data/treasures.ts';
+import { toLonLat, toXY } from '../src/core/geo.ts';
+
+describe('skarby', () => {
+  const k = TREASURES[0];
+  const [x, y] = toXY(k.ll[0], k.ll[1]);
+  it('znaleziony, gdy trasa przechodzi obok (także między rzadkimi punktami)', () => {
+    // dwa punkty 300 m od siebie, środek odcinka 40 m od skarbu
+    const trail = [[toLonLat(x - 150, y + 40), toLonLat(x + 150, y + 40)]];
+    expect(findTreasures(trail, TREASURES)).toContain(k.id);
+  });
+  it('nieznaleziony, gdy trasa jest za daleko i nie liczony drugi raz', () => {
+    const far = [[toLonLat(x - 150, y + FIND_RADIUS_M + 30), toLonLat(x + 150, y + FIND_RADIUS_M + 30)]];
+    expect(findTreasures(far, [k])).toEqual([]);
+    const near = [[toLonLat(x, y + 10), toLonLat(x + 10, y + 10)]];
+    expect(findTreasures(near, [k], new Set([k.id]))).toEqual([]);
+  });
+  it('każdy skarb leży w granicach Poznania i ma unikalne id', () => {
+    expect(new Set(TREASURES.map((t) => t.id)).size).toBe(TREASURES.length);
+    for (const t of TREASURES) {
+      expect(t.ll[0]).toBeGreaterThan(16.73);
+      expect(t.ll[0]).toBeLessThan(17.08);
+      expect(t.ll[1]).toBeGreaterThan(52.29);
+      expect(t.ll[1]).toBeLessThan(52.51);
+    }
+  });
+});

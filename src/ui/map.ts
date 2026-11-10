@@ -55,6 +55,19 @@ export function streetsGeoJSON(city: CityData, ids?: Iterable<number>): FC {
   );
 }
 
+export const EMPIRE_Z = 12;
+
+/** Kolor osiedla wg procentu: pergamin → miedź → bursztyn. */
+export function districtAreas(city: CityData, pcts: number[]): FC {
+  return fc(
+    city.districts.map((d, i) => ({
+      type: 'Feature',
+      properties: { p: pcts[i] ?? 0 },
+      geometry: { type: 'MultiPolygon', coordinates: d.ll.map((r) => [r]) },
+    })),
+  );
+}
+
 function polygons(rings: LonLat[][], props: Record<string, unknown> = {}): GeoJSON.Feature {
   return { type: 'Feature', properties: props, geometry: { type: 'Polygon', coordinates: rings } };
 }
@@ -75,6 +88,7 @@ export function buildStyle(city: CityData): StyleSpecification {
       river: { type: 'geojson', data: fc(city.river.map((r) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: r } }))) },
       parks: { type: 'geojson', data: fc(city.parks.map((p) => polygons(p.ll, { name: p.name }))) },
       districts: { type: 'geojson', data: districts },
+      'district-areas': { type: 'geojson', data: districtAreas(city, []) },
       streets: { type: 'geojson', data: streetsGeoJSON(city), tolerance: 0.6 },
       discovered: { type: 'geojson', data: fc([]) },
       target: { type: 'geojson', data: fc([]) },
@@ -83,6 +97,17 @@ export function buildStyle(city: CityData): StyleSpecification {
       { id: 'bg', type: 'background', paint: { 'background-color': C.paperEdge } },
       { id: 'city', type: 'fill', source: 'city', paint: { 'fill-color': C.paper } },
       { id: 'city-edge', type: 'line', source: 'city', paint: { 'line-color': C.copper, 'line-width': 1.2, 'line-opacity': 0.5, 'line-dasharray': [4, 2, 1, 2] } },
+      // Widok „imperium” przy małym zoomie: osiedla zabarwione postępem (mgła wtedy rzednie)
+      {
+        id: 'district-fill',
+        type: 'fill',
+        source: 'district-areas',
+        filter: ['>', ['get', 'p'], 0],
+        paint: {
+          'fill-color': ['interpolate', ['linear'], ['get', 'p'], 0, '#3A2A1A', 2, '#6A4A26', 10, '#A8732C', 30, '#E3A440', 60, '#F0C774'],
+          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.9, EMPIRE_Z - 0.4, 0.75, EMPIRE_Z + 0.6, 0],
+        },
+      },
       { id: 'parks', type: 'fill', source: 'parks', paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.9 } },
       { id: 'parks-edge', type: 'line', source: 'parks', paint: { 'line-color': '#6A5136', 'line-width': 0.8, 'line-opacity': 0.7 } },
       { id: 'water', type: 'fill', source: 'water', paint: { 'fill-color': C.water } },
@@ -209,36 +234,83 @@ export class CityMap {
     });
   }
 
+  private pcts: number[] = [];
+  private syncLabels = () => {};
+
   private addLabels() {
     // Większe osiedla mają pierwszeństwo, gdy podpisy na siebie nachodzą
     const order = this.city.districts
       .map((d, i) => ({ d, i, area: (d.bbox[2] - d.bbox[0]) * (d.bbox[3] - d.bbox[1]) }))
       .sort((a, b) => b.area - a.area);
-    for (const { d } of order) {
+    const items = order.map(({ d, i }) => {
       const el = document.createElement('div');
       el.className = 'district-label';
-      el.textContent = d.name;
-      this.labels.push(new maplibregl.Marker({ element: el }).setLngLat(d.center).addTo(this.map));
-    }
-    const sync = () => {
+      el.innerHTML = `<span class="n"></span><span class="p"></span>`;
+      el.querySelector('.n')!.textContent = d.name;
+      return { i, el, m: new maplibregl.Marker({ element: el }).setLngLat(d.center).addTo(this.map) };
+    });
+    this.syncLabels = () => {
       const z = this.map.getZoom();
+      const empire = z < EMPIRE_Z;
       const placed: [number, number, number, number][] = [];
       const H = this.map.getCanvas().clientHeight;
       const W = this.map.getCanvas().clientWidth;
-      for (const m of this.labels) {
-        const el = m.getElement();
-        let show = z >= 11.5 && z < 15.8;
+      for (const { i, el, m } of items) {
+        const pct = this.pcts[i] ?? 0;
+        // widok „imperium”: tylko osiedla, w których już byłeś, z procentem
+        let show = empire ? pct > 0 && z >= 9.8 : z < 15.8;
+        el.classList.toggle('empire', empire);
+        (el.querySelector('.p') as HTMLElement).textContent = empire ? `${pct < 1 ? pct.toFixed(1).replace('.', ',') : Math.round(pct)}%` : '';
         if (show) {
           const p = this.map.project(m.getLngLat());
-          const w = (el.textContent!.length * 7.4) / 2 + 6;
-          const r: [number, number, number, number] = [p.x - w, p.y - 11, p.x + w, p.y + 11];
+          const len = empire ? Math.max(el.textContent!.length - 4, 5) : el.textContent!.length;
+          const w = (len * (empire ? 6.6 : 7.4)) / 2 + 6;
+          const hh = empire ? 17 : 11;
+          const r: [number, number, number, number] = [p.x - w, p.y - hh, p.x + w, p.y + hh];
           show = p.y > 120 && p.y < H - 40 && r[0] > 4 && r[2] < W - 4 && !placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
           if (show) placed.push(r);
         }
         el.classList.toggle('hidden', !show);
       }
     };
-    this.map.on('move', sync);
+    this.map.on('move', this.syncLabels);
+    this.syncLabels();
+  }
+
+  /** Procent odkrycia osiedli → kolory w widoku „imperium” i podpisy. */
+  setDistrictProgress(pcts: number[]) {
+    this.pcts = pcts;
+    const src = this.map.getSource('district-areas') as GeoJSONSource | undefined;
+    src?.setData(districtAreas(this.city, pcts));
+    this.syncLabels();
+  }
+
+  private treasureMarkers: maplibregl.Marker[] = [];
+  setTreasures(list: { id: string; ll: LonLat; found: boolean; glyph: string; name: string }[], onClick: (id: string) => void) {
+    for (const m of this.treasureMarkers) m.remove();
+    this.treasureMarkers = list.map((t) => {
+      // MapLibre ustawia `transform` na elemencie znacznika, więc skalujemy element wewnętrzny
+      const wrap = document.createElement('div');
+      wrap.className = 'treasure-wrap';
+      const el = document.createElement('button');
+      el.className = `treasure ${t.found ? 'found' : 'hidden-t'}`;
+      el.setAttribute('aria-label', t.found ? t.name : 'Nieznany skarb');
+      el.innerHTML = t.found
+        ? `<svg viewBox="-20 -20 40 40" aria-hidden="true">${t.glyph}</svg>`
+        : `<span>?</span>`;
+      el.onclick = (e) => (e.stopPropagation(), onClick(t.id));
+      wrap.append(el);
+      return new maplibregl.Marker({ element: wrap }).setLngLat(t.ll).addTo(this.map);
+    });
+    const sync = () => {
+      const z = this.map.getZoom();
+      for (const m of this.treasureMarkers) {
+        const w = m.getElement();
+        w.classList.toggle('far', z < 13);
+        w.classList.toggle('empire', z < EMPIRE_Z);
+      }
+    };
+    this.map.on('zoom', sync);
     sync();
   }
 

@@ -5,6 +5,8 @@ import { buildIndex, cleanTrack, Coverage, matchPieces, walkedDistance, type Sam
 import { computeProgress, type ProgressReport } from './core/progress.ts';
 import * as store from './store.ts';
 import type { WalkMeta } from './store.ts';
+import { TREASURES } from './data/treasures.ts';
+import { findTreasures } from './core/treasures.ts';
 
 export interface WalkInput {
   name: string;
@@ -27,6 +29,8 @@ export class Engine {
   /** Ślady spacerów jako kawałki lon/lat (do wycinania mgły). */
   trails = new Map<string, LonLat[][]>();
   progress!: ProgressReport;
+  /** Znalezione skarby: id → czas znalezienia. */
+  treasures = new Map<string, number>();
   version = '';
   private listeners = new Set<() => void>();
 
@@ -48,6 +52,26 @@ export class Engine {
     }
     if (needRecompute) await store.saveCoverage(this.version, this.cov.bits);
     this.progress = computeProgress(this.city, this.cov);
+    const saved = await store.getKV<Record<string, number>>('treasures');
+    if (saved) this.treasures = new Map(Object.entries(saved));
+    else if (this.walks.length) {
+      // pierwsze uruchomienie z funkcją skarbów: zaliczamy bez fanfar to, co już przebyte
+      for (const id of findTreasures([...this.trails.values()].flat(), TREASURES)) this.treasures.set(id, Date.now());
+      await this.saveTreasures();
+    }
+  }
+
+  private saveTreasures() {
+    return store.setKV('treasures', Object.fromEntries(this.treasures));
+  }
+
+  /** Sprawdza ślady podanych spacerów; zwraca nowo znalezione skarby. */
+  async checkTreasures(walkIds: string[]): Promise<string[]> {
+    const trails = walkIds.flatMap((id) => this.trails.get(id) ?? []);
+    const fresh = findTreasures(trails, TREASURES, new Set(this.treasures.keys()));
+    for (const id of fresh) this.treasures.set(id, Date.now());
+    if (fresh.length) await this.saveTreasures();
+    return fresh;
   }
 
   private toTrail(pieces: ReturnType<typeof cleanTrack>): LonLat[][] {
@@ -68,14 +92,19 @@ export class Engine {
     return `${pts.length}:${a.lat.toFixed(5)},${a.lon.toFixed(5)}:${b.lat.toFixed(5)},${b.lon.toFixed(5)}:${a.t ?? ''}`;
   }
 
-  async addWalk(input: WalkInput): Promise<WalkResult> {
+  /**
+   * Dodaje spacer. W trybie `batch` (import całej historii) nie zapisuje pokrycia
+   * ani nie przelicza postępu po każdej trasie — wywołaj potem `commit()`.
+   */
+  async addWalk(input: WalkInput, batch = false): Promise<WalkResult> {
     const pts = input.points;
     if (pts.length < 2) return { walk: null, empty: true, freshSegs: [] };
     const fp = this.fingerprint(pts);
     if (this.walks.some((w) => w.id === fp)) return { walk: null, duplicate: true, freshSegs: [] };
 
     const pieces = cleanTrack(pts);
-    const namesBefore = new Set(this.progress.streetNames);
+    if (!pieces.length) return { walk: null, empty: true, freshSegs: [] };
+    const namesBefore = this.progress.streetNames;
     const fresh = this.cov.apply(matchPieces(this.index, pieces));
     const distance = walkedDistance(pts);
     const newStreets = [
@@ -103,11 +132,24 @@ export class Engine {
     this.walks.push(walk);
     this.walks.sort((a, b) => (a.start ?? a.addedAt) - (b.start ?? b.addedAt));
     this.trails.set(walk.id, this.toTrail(pieces));
+    for (const n of newStreets) namesBefore.add(n);
     await store.saveTrack(walk.id, pts);
+    if (!batch) await this.commit();
+    return { walk, freshSegs: fresh };
+  }
+
+  async commit() {
     await store.saveWalks(this.walks);
     await store.saveCoverage(this.version, this.cov.bits);
     this.progress = computeProgress(this.city, this.cov);
-    return { walk, freshSegs: fresh };
+  }
+
+  /** Prostokąt miasta (lon/lat) powiększony o ~1 km — do odsiewania tras z wakacji. */
+  cityBox(): [number, number, number, number] {
+    const pts = this.city.city.ll.flat();
+    const lons = pts.map((p) => p[0]),
+      lats = pts.map((p) => p[1]);
+    return [Math.min(...lons) - 0.015, Math.min(...lats) - 0.01, Math.max(...lons) + 0.015, Math.max(...lats) + 0.01];
   }
 
   async removeWalk(id: string) {

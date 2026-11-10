@@ -22,20 +22,39 @@ Dane miasta (`public/data/poznan.json`, ok. 3,9 MB, po gzip ok. 1,2 MB) są w re
 
 ## Wgrywanie tras
 
-Przycisk **GPX** na mapie przyjmuje jeden plik albo wiele naraz, np. całą historię. Duplikaty są pomijane automatycznie. Na komputerze pliki można też przeciągnąć na mapę. W katalogu `samples/` są trzy przykładowe spacery (Jeżyce, Stare Miasto, Śródka nocą), dobre do szybkiego testu.
+Przycisk **Wgraj** przyjmuje pliki **GPX, TCX, FIT** (także `.gz`) oraz **archiwa ZIP**. Można wgrać wiele plików naraz, a duplikaty są pomijane. Import sam odsiewa:
 
-Skąd wziąć GPX na iPhonie:
+- **przejazdy rowerem**, rozpoznane po sporcie zapisanym w pliku FIT/TCX albo po typowej prędkości powyżej 16 km/h;
+- **trasy spoza Poznania**, np. z wakacji.
+
+W katalogu `samples/` są trzy przykładowe spacery do szybkiego testu.
+
+### Apple Zdrowie (iPhone / Apple Watch)
+
+1. Aplikacja **Zdrowie** → Twoje zdjęcie w prawym górnym rogu → **Eksportuj wszystkie dane zdrowia**. Może to potrwać kilka minut.
+2. W arkuszu udostępniania wybierz **Zachowaj w Plikach**.
+3. W Mgle: **Wgraj** → wybierz `eksport.zip`.
+
+Aplikacja czyta z archiwum tylko trasy treningów (`workout-routes/*.gpx`) i nie wczytuje do pamięci gigabajtowego `export.xml`. Trasy mają tylko treningi nagrane z GPS (np. „Chód” albo „Bieg” na zegarku lub w aplikacji Fitness).
+
+### Garmin
+
+- **Cała historia naraz:** zaloguj się na garmin.com → *Konto* → *Zarządzanie danymi* → **Eksportuj swoje dane**. Garmin przyśle e-mailem link do archiwum, co trwa od kilku godzin do 2 dni. Wgraj ten ZIP w całości: aplikacja sama znajdzie w środku zagnieżdżone archiwa z plikami `.fit`.
+- **Pojedyncza aktywność:** connect.garmin.com → aktywność → ⚙ → *Eksportuj oryginał* (ZIP z FIT) albo *Eksportuj do GPX*.
+- Aplikacja Garmin Connect na iPhonie nie eksportuje plików, więc trzeba to zrobić przez przeglądarkę.
+
+### Inne źródła
 
 | Źródło | Jak |
 |---|---|
-| **Strava** | strava.com → Ustawienia → Moje konto → *Pobierz lub usuń konto* → archiwum. W `activities/` są pliki `.gpx` (część jako `.fit.gz`, na razie nieobsługiwane). Pojedynczą aktywność wyeksportujesz przez ⋯ → *Eksportuj GPX* na stronie www. |
-| **Apple Zdrowie / Fitness (zegarek)** | Zdrowie nie eksportuje GPX bezpośrednio. Darmowe apki typu *HealthFit* albo *RunGap* eksportują treningi „Chód” do GPX w Plikach. |
-| **Garmin Connect** | Aktywność → ⚙ → *Eksportuj do GPX*. |
-| **Nagrywanie w tle (plan B)** | Np. darmowa, otwartoźródłowa *Open GPX Tracker*: nagrywa przy zablokowanym ekranie, a ślad zapisujesz do Plików i wgrywasz tutaj. |
+| **Strava** | strava.com → Ustawienia → Moje konto → *Pobierz lub usuń konto* → archiwum ZIP (zawiera `.gpx` i `.fit.gz`, oba działają). |
+| **Nagrywanie w tle (plan B)** | Np. darmowa, otwartoźródłowa *Open GPX Tracker*: nagrywa przy zablokowanym ekranie, a ślad zapisujesz do Plików. |
 
 ## Nagrywanie na żywo i ograniczenia iOS
 
-Przycisk **Wyrusz na spacer** nagrywa trasę przez GPS i odsłania mgłę na bieżąco.
+Przycisk **Wyrusz na spacer** nagrywa trasę przez GPS. Mgła rzednie, a ulice świecą już w trakcie marszu, a mapa podąża za Tobą.
+
+**Tryb kieszonkowy** (przycisk *Kieszeń* podczas nagrywania) wyświetla czarny ekran z przygaszonym licznikiem kilometrów i nowych ulic. Na OLED-zie iPhone'a czerń nie zużywa prądu, a ekran zostaje „włączony”, więc GPS dalej działa. Napisy co 30 s przesuwają się, żeby nic się nie wypaliło. Żeby wrócić, przytrzymaj ekran przez sekundę.
 
 Na iOS strona ani PWA nie dostają pozycji, gdy ekran jest zablokowany albo aplikacja działa w tle. Tego nie da się obejść z poziomu przeglądarki. Co robi aplikacja:
 
@@ -44,6 +63,16 @@ Na iOS strona ani PWA nie dostają pozycji, gdy ekran jest zablokowany albo apli
 - po powrocie z tła nie łączy dziury prostą linią, tylko pomija ten kawałek. Lepiej nie odsłonić ulicy, niż odsłonić ją niesłusznie.
 
 Na długie spacery z telefonem w kieszeni realny plan B to natywna apka nagrywająca w tle i eksport GPX (tabela wyżej).
+
+## Skarby, imperium, karty
+
+- **Skarby.** W mieście ukrytych jest 27 miejsc z historią: Koziołki, Bamberka, Krzyże, Okrąglak, Cytadela, Śródka, Palmiarnia, Malta… Pod mgłą widać tylko pieczęć „?”. Gdy przejdziesz w promieniu 80 m, skarb się odsłania i można przeczytać jego historię. Lista z podpowiedzią osiedla jest na ekranie Osiągnięć, a za 10 skarbów jest pieczęć *Poszukiwacz skarbów*. Treści i współrzędne są w `src/data/treasures.ts`. Test pilnuje, żeby każdy skarb leżał przy drodze, którą da się przejść.
+- **Widok imperium.** Po oddaleniu mapy mgła rzednie, a odwiedzone osiedla zabarwiają się od miedzi do bursztynu, z procentem odkrycia.
+- **Karta wędrówki.** Z podsumowania spaceru albo z dziennika (ikona udostępniania) powstaje obrazek 1080×1350: fragment mapy z mgłą, bursztynowe ulice, kilometry, nowe ulice i procent miasta. Na iPhonie *Udostępnij* otwiera systemowy arkusz (Wiadomości, Instagram, Zdjęcia).
+
+## Hosting (GitHub Pages)
+
+Każdy push na `main` albo `claude/**` buduje aplikację i publikuje ją na gałęzi `gh-pages` (workflow *Wdrożenie (GitHub Pages)*). **Jednorazowo** trzeba włączyć Pages w ustawieniach repozytorium: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `gh-pages` / `(root)` → Save.** Po minucie aplikacja jest pod adresem `https://<użytkownik>.github.io/SlimWalker/`.
 
 ## Jak liczymy odkrycie ulicy
 
@@ -74,8 +103,9 @@ Przykładowe spacery do testów generuje `node scripts/sample-gpx.ts "Jeżyce" 4
 ## Struktura
 
 ```
-src/core/     logika bez DOM, pokryta testami (geo, match, progress, gpx, explore, achievements)
-src/ui/       mapa (MapLibre + własny styl), mgła (canvas), ekrany, nagrywanie
+src/core/     logika bez DOM, pokryta testami (geo, match, progress, gpx, fit, zip, importer, explore, treasures, achievements)
+src/data/     treści skarbów
+src/ui/       mapa (MapLibre + własny styl), mgła (canvas), ekrany, nagrywanie, karta (share), tryb kieszonkowy
 src/engine.ts stan aplikacji: dane miasta + pokrycie + spacery
 src/store.ts  IndexedDB
 scripts/      pobieranie i przetwarzanie OSM, generator przykładowych GPX
@@ -91,14 +121,15 @@ Decyzje techniczne, które odbiegają od sugestii:
 
 ## Pomysły
 
-Większe rzeczy do omówienia, jeszcze niezrobione:
+Zrobione z poprzedniej listy: skarby, kolory osiedli (imperium), karta do udostępniania, tryb kieszonkowy.
+
+Do omówienia:
 
 - **Mgła wraca.** Ulice nieodwiedzane od roku lekko przygasają, co daje powód, żeby wracać w znane miejsca.
 - **Wyprawy tygodniowe.** Np. „3 nowe ulice na Wildzie do niedzieli”, z pieczęcią za serię wypraw.
-- **Mapa skarbów.** W losowych nieodkrytych miejscach ukryte są znaczniki (stare nazwy ulic, ciekawostki z historii Poznania), widoczne dopiero po odsłonięciu.
-- **Import Google Maps Timeline** (eksport JSON z telefonu) i plików **.fit** ze Stravy. Odblokowałoby to całą historię naraz.
-- **Kolory pokrycia osiedli na mapie** przy małym zoomie (od pergaminu do bursztynu) jako widok „imperium”.
-- **Udostępnianie karty spaceru** jako obrazka (canvas → PNG przez Web Share) w stylu ryciny.
-- **Tryb kieszonkowy** do nagrywania: czarny ekran z jednym licznikiem, oszczędzający baterię OLED, kiedy ekran musi zostać włączony.
+- **Import Google Maps Timeline** (JSON z telefonu), gdyby kiedyś przydała się historia sprzed zegarka.
+- **Skarby sezonowe.** Np. 11 listopada skarb „Rogal” daje podwójnie, a w grudniu pojawia się skarb na Jarmarku.
+- **Własne skarby.** Długie przytrzymanie na mapie zostawia notatkę („tu jest najlepsza kawa”), która świeci jak skarb.
+- **Tryb „nocny stróż”.** Po 22:00 mapa robi się jeszcze ciemniejsza, a odkryte ulice świecą jak latarnie, w parze z pieczęcią Nocny marek.
 
 Dane: © autorzy OpenStreetMap (ODbL).

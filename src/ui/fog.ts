@@ -37,7 +37,7 @@ function toMerc(pieces: LonLat[][]): MTrail[] {
 }
 
 /** Kafelkowalny szum (value noise + fBm) → tekstura dymu w odcieniach sepii. */
-function smokeTexture(size: number, seed: number, tint: [number, number, number], alpha: [number, number]): HTMLCanvasElement {
+export function smokeTexture(size: number, seed: number, tint: [number, number, number], alpha: [number, number]): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d')!;
@@ -192,12 +192,15 @@ export class Fog {
     const ax = ox % (256 * scale),
       ay = oy % (256 * scale);
     pat.setTransform(new DOMMatrix([scale, 0, 0, scale, ax, ay]));
+    // przy małym zoomie („imperium”) mgła rzednie, żeby było widać kolory osiedli
+    const fa = Math.min(1, Math.max(0.35, 0.35 + ((zoom - 10.4) / 2.2) * 0.65));
+    ctx.globalAlpha = fa;
     ctx.fillStyle = pat;
     ctx.fillRect(0, 0, W, H);
     const pat2 = ctx.createPattern(this.wisps, 'repeat')!;
     const s2 = scale * 2.3;
     pat2.setTransform(new DOMMatrix([s2, 0, 0, s2, (ox * 0.9 + this.drift * 6) % (256 * s2), (oy * 0.9 + this.drift * 2.5) % (256 * s2)]));
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.55 * fa;
     ctx.fillStyle = pat2;
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;

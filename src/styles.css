@@ -48,6 +48,21 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 
 .district-label { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 13px; color: var(--ivory); opacity: .62; letter-spacing: .02em; text-shadow: 0 0 6px #0d0a07, 0 0 2px #0d0a07; pointer-events: none; white-space: nowrap; transition: opacity .3s; }
 .district-label.hidden { visibility: hidden; }
+.district-label .p { display: none; }
+.district-label.empire { display: flex; flex-direction: column; align-items: center; line-height: 1.05; font-size: 12px; opacity: .9; }
+.district-label.empire .p { display: block; font-style: normal; font-weight: 600; font-size: 15px; color: var(--accent); }
+
+/* Skarby */
+.treasure { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: transform .2s, opacity .3s; }
+.treasure.hidden-t { background: rgba(23,18,13,.55); border: 1.5px dashed rgba(201,160,106,.55); color: rgba(232,217,181,.75); font-family: var(--serif); font-weight: 600; font-size: 17px; box-shadow: 0 0 14px rgba(0,0,0,.5); }
+.treasure.found { background: radial-gradient(circle at 40% 35%, #b8553a, #8e3b22); border: 1.5px solid var(--accent); color: var(--ivory); box-shadow: 0 0 16px rgba(227,164,64,.45); }
+.treasure svg { width: 22px; height: 22px; }
+.treasure-wrap { width: 34px; height: 34px; }
+.treasure-wrap.far .treasure { transform: scale(.62); }
+.treasure-wrap.far .treasure.hidden-t { opacity: .6; }
+.treasure-wrap.empire .treasure.hidden-t { display: none; }
+.treasure-wrap.empire { display: none; }
+.treasure:active { transform: scale(.9); }
 
 .topbar { position: absolute; top: 0; left: 0; right: 0; padding: calc(var(--safe-top) + 10px) 16px 0; display: flex; align-items: center; gap: 12px; pointer-events: none; }
 .topbar .rose { color: var(--copper); flex: none; }
@@ -204,3 +219,40 @@ body.is-recording .last-walk, body.is-recording .empty-card { display: none; }
 .target-pin::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .target-pin span { position: absolute; inset: -12px; border: 1.5px dashed var(--rust); border-radius: 50%; animation: spin 12s linear infinite; }
 .target-arrow { display: inline-block; transition: transform .4s; color: var(--rust); font-size: 26px; }
+
+/* ---------- Tryb kieszonkowy ---------- */
+.pocket { position: fixed; inset: 0; z-index: 100; background: #000; color: #4a3a28; display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.pocket-body { display: flex; flex-direction: column; align-items: center; gap: 8px; transition: transform 2s ease; }
+.pocket b { font-family: var(--serif); font-weight: 500; font-size: 64px; color: #5a4630; }
+.pocket span { font-size: 15px; letter-spacing: .04em; }
+.pocket .pk-streets { color: #6a4f2c; font-family: var(--serif); font-size: 20px; }
+.pocket-hint { position: absolute; bottom: calc(var(--safe-bottom) + 28px); display: flex; align-items: center; gap: 8px; font-size: 12px; color: #2e2418; }
+.pocket-hint svg { width: 22px; height: 22px; transform: rotate(-90deg); }
+.pocket-hint .ring-bg { fill: none; stroke: #1e170f; stroke-width: 3; }
+.pocket-hint .ring { fill: none; stroke: #6a4f2c; stroke-width: 3; stroke-dasharray: 101; stroke-dashoffset: 101; }
+.pocket.holding .ring { transition: stroke-dashoffset .9s linear; stroke-dashoffset: 0; }
+#btn-pocket { display: none; }
+body.is-recording #btn-pocket { display: inline-flex; }
+body.is-recording #btn-gpx { display: none; }
+
+/* ---------- Karta spaceru ---------- */
+.card-preview { width: 100%; border-radius: 14px; border: 1px solid var(--line-2); display: block; margin: 10px 0 14px; aspect-ratio: 1080 / 1350; background: var(--bg); object-fit: contain; }
+.sheet .actions .btn { flex: 1; }
+.walk-share { width: 44px; color: var(--copper); display: grid; place-items: center; }
+.walk-share svg { width: 19px; height: 19px; }
+
+/* ---------- Skarby: lista ---------- */
+.treasure-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.treasure-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 6px 10px; text-align: center; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.treasure-card .treasure { pointer-events: none; }
+.treasure-card.found { color: var(--ivory); border-color: #6a3a24; }
+.treasure-card b { font-family: var(--serif); font-weight: 500; font-size: 13px; line-height: 1.15; }
+.import-progress { font-variant-numeric: tabular-nums; }
+
+.found-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--bg); border: 1px solid #6a3a24; border-radius: 12px; padding: 8px 12px; margin-top: 8px; }
+.found-row span:last-child { display: flex; flex-direction: column; }
+.found-row b { font-family: var(--serif); font-weight: 600; }
+.found-row small { color: var(--muted); font-size: 12px; }
+.found-row .treasure { flex: none; }
+.btn[disabled] { opacity: .5; }
+.treasure-card small { font-family: var(--serif); font-style: italic; font-size: 11px; color: #8a7a60; margin-top: -4px; }

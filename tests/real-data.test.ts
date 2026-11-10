@@ -5,6 +5,8 @@ import { decodeCity } from '../src/core/data.ts';
 import { buildIndex, Coverage, matchTrack, walkedDistance } from '../src/core/match.ts';
 import { computeProgress } from '../src/core/progress.ts';
 import { parseGpx } from '../src/core/gpx.ts';
+import { TREASURES, FIND_RADIUS_M } from '../src/data/treasures.ts';
+import { pointLineDist, toXY } from '../src/core/geo.ts';
 
 const DATA = 'public/data/poznan.json';
 describe.skipIf(!existsSync(DATA))('prawdziwe dane Poznania', () => {
@@ -38,5 +40,14 @@ describe.skipIf(!existsSync(DATA))('prawdziwe dane Poznania', () => {
     // ślad ma ~4,3 km i chodzi po ulicach — odkryta długość powinna być tego rzędu (nie 3× więcej)
     expect(p.city.discoveredLen).toBeLessThan(4300 * 1.3);
     expect(p.city.discoveredLen).toBeGreaterThan(4300 * 0.4);
+  });
+
+  it('każdy skarb da się znaleźć: leży blisko drogi, którą można przejść', () => {
+    for (const t of TREASURES) {
+      const p = toXY(t.ll[0], t.ll[1]);
+      let best = Infinity;
+      for (const s of city.segs) if (Math.abs(s.xy[0][0] - p[0]) < 3000 && Math.abs(s.xy[0][1] - p[1]) < 3000) best = Math.min(best, pointLineDist(p, s.xy));
+      expect(best, t.id).toBeLessThan(FIND_RADIUS_M * 0.75);
+    }
   });
 });
