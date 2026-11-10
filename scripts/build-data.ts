@@ -90,8 +90,11 @@ export function classify(t: Record<string, string>): { cls: SegClass; counted: b
   if (t.foot === 'no' || t.motorroad === 'yes') return null;
   if (h in COUNTED) return { cls: COUNTED[h], counted: true };
   if (!PATHS.has(h)) return null;
-  if (h === 'footway' && ['sidewalk', 'crossing', 'traffic_island'].includes(t.footway ?? '')) return null;
-  if (h === 'path' && t.path === 'sidewalk') return null;
+  // Chodniki rysowane osobno dublują ulice — pomijamy je, z wyjątkiem mostów
+  // (na wielu mostach jezdnia ma foot=no i tylko chodnik prowadzi pieszego przez Wartę).
+  const onBridge = !!t.bridge && t.bridge !== 'no';
+  if (!onBridge && h === 'footway' && ['sidewalk', 'crossing', 'traffic_island'].includes(t.footway ?? '')) return null;
+  if (!onBridge && h === 'path' && t.path === 'sidewalk') return null;
   if (h === 'cycleway' && t.cycleway === 'crossing') return null;
   if (h === 'service' && ['parking_aisle', 'driveway', 'drive-through'].includes(t.service ?? '')) return null;
   // Nazwane alejki i drogi serwisowe liczymy (np. aleje w parkach), bezimienne tylko rysujemy.
@@ -151,9 +154,14 @@ function mid(xy: XY[]): XY {
 }
 
 async function main() {
-  const [cityEls, districtEls, highwayEls, waterEls, parkEls] = await Promise.all(
-    ['city', 'districts', 'highways', 'water', 'parks'].map(load),
+  const [cityEls, districtEls, highwayEls, waterEls, parkEls, bridgeEls] = await Promise.all(
+    ['city', 'districts', 'highways', 'water', 'parks', 'bridges'].map(load),
   );
+  // Obrysy mostów (man_made=bridge) niosą nazwy, np. „Most Lecha”
+  const bridgeAreas = bridgeEls
+    .filter((e) => e.tags?.name)
+    .map((e) => ({ name: e.tags!.name, rings: areaRings(e) }))
+    .filter((b) => b.rings.length);
 
   // Miasto
   const cityRel = cityEls.find((e) => e.type === 'relation')!;
@@ -212,7 +220,11 @@ async function main() {
     let bi = -1;
     if ((w.tags.bridge && w.tags.bridge !== 'no') || w.tags.man_made === 'bridge') {
       if (chains.some((ch) => linesIntersect(xy, ch))) {
-        const bn = w.tags['bridge:name'] ?? (name && /^most/i.test(name) ? name : name ? `Most w ciągu ${name}` : null);
+        const area = bridgeAreas.find((b) => pointInRings(m[0], m[1], b.rings));
+        const bn =
+          area?.name ??
+          w.tags['bridge:name'] ??
+          (name && /^(most|kładka)/i.test(name) ? name : name ? `Most w ciągu ul. ${name}` : null);
         if (bn) {
           if (!bridgeIdx.has(bn)) (bridgeIdx.set(bn, bridges.length), bridges.push(bn));
           bi = bridgeIdx.get(bn)!;

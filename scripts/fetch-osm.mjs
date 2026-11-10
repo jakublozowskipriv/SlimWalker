@@ -15,6 +15,7 @@ const QUERIES = {
   districts: `[out:json][timeout:180];${AREA}rel(area.a)["boundary"="administrative"]["admin_level"~"^(9|10|11)$"];out geom;`,
   highways: `[out:json][timeout:300];${AREA}way(area.a)["highway"];out body geom;`,
   water: `[out:json][timeout:180];${AREA}(way(area.a)["waterway"="river"];way(area.a)["natural"="water"];rel(area.a)["natural"="water"];way(area.a)["waterway"="riverbank"];);out geom;`,
+  bridges: `[out:json][timeout:120];${AREA}(way(area.a)["man_made"="bridge"];rel(area.a)["man_made"="bridge"];);out geom;`,
   parks: `[out:json][timeout:180];${AREA}(way(area.a)["leisure"="park"];rel(area.a)["leisure"="park"];);out geom;`,
 };
 

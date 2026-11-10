@@ -16,7 +16,7 @@
 //    skrzyżowaniach odkrywałyby się „przy okazji”.
 //  - DISCOVER_RATIO = 0,6: trzeba przejść większość odcinka, ale wybaczamy dziury
 //    GPS i to, że na końcach (skrzyżowania) ślad bywa przesunięty.
-import { axisBearing, axisDiff, cumulative, dist, haversine, pointAlong, toXY, type XY } from './geo.ts';
+import { axisBearing, axisDiff, cumulative, dist, haversine, pointAlong, simplify, toXY, type XY } from './geo.ts';
 import type { Seg } from './data.ts';
 
 export const SAMPLE_STEP = 10;
@@ -24,6 +24,7 @@ export const BUFFER_M = 25;
 export const MAX_ANGLE = 40;
 export const DISCOVER_RATIO = 0.6;
 export const DENSIFY_STEP = 5;
+const ALONG_REACH = DENSIFY_STEP * 1.5;
 /** Powyżej tej prędkości (tramwaj, rower szybki, auto) fragment nie jest liczony jako spacer. */
 export const MAX_WALK_SPEED = 7; // m/s ≈ 25 km/h (obejmuje bieganie)
 /** Przerwa w śladzie bez czasu dłuższa niż to — nie łączymy punktów. */
@@ -142,6 +143,9 @@ export function matchPieces(index: SampleIndex, pieces: XY[][]): Set<number> {
   for (const piece of pieces) {
     for (const p of densify(piece)) {
       if (Number.isNaN(p.axis)) continue;
+      const rad = (p.axis * Math.PI) / 180;
+      const ux = Math.sin(rad),
+        uy = Math.cos(rad);
       const cx = Math.floor(p.x / CELL),
         cy = Math.floor(p.y / CELL);
       for (let gx = cx - r; gx <= cx + r; gx++)
@@ -152,6 +156,10 @@ export function matchPieces(index: SampleIndex, pieces: XY[][]): Set<number> {
             const dx = index.x[j] - p.x,
               dy = index.y[j] - p.y;
             if (dx * dx + dy * dy > b2) continue;
+            // bufor jest „korytarzem” wzdłuż śladu: szeroki w poprzek, krótki wzdłuż,
+            // żeby koniec spaceru nie zaliczał 25 m ulicy dalej
+            const along = Math.abs(dx * ux + dy * uy);
+            if (along > ALONG_REACH) continue;
             if (axisDiff(index.axis[j], p.axis) > MAX_ANGLE) continue;
             hit.add(j);
           }
@@ -209,9 +217,30 @@ export function matchTrack(index: SampleIndex, pts: TrackPoint[]): Set<number> {
   return matchPieces(index, cleanTrack(pts));
 }
 
-/** Długość śladu liczona jako spacer (po odfiltrowaniu przejazdów). */
+/** Średnia krocząca (okno ±r punktów) — tłumi drgania GPS, zachowuje końce. */
+export function smooth(pts: XY[], r: number): XY[] {
+  if (pts.length <= 2 * r + 1) return pts;
+  return pts.map((p, i) => {
+    if (i === 0 || i === pts.length - 1) return p;
+    const a = Math.max(0, i - r),
+      b = Math.min(pts.length - 1, i + r);
+    let x = 0,
+      y = 0;
+    for (let j = a; j <= b; j++) ((x += pts[j][0]), (y += pts[j][1]));
+    return [x / (b - a + 1), y / (b - a + 1)] as XY;
+  });
+}
+
+/**
+ * Długość śladu liczona jako spacer (po odfiltrowaniu przejazdów).
+ * Ślad jest najpierw upraszczany (Douglas–Peucker, 6 m), bo drgania GPS
+ * potrafią zawyżyć dystans o kilkadziesiąt procent.
+ */
 export function walkedDistance(pts: TrackPoint[]): number {
   let s = 0;
-  for (const piece of cleanTrack(pts)) for (let i = 1; i < piece.length; i++) s += dist(piece[i - 1], piece[i]);
+  for (const raw of cleanTrack(pts)) {
+    const piece = simplify(smooth(raw, 2), 4);
+    for (let i = 1; i < piece.length; i++) s += dist(piece[i - 1], piece[i]);
+  }
   return s;
 }

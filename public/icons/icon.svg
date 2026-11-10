@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="30%" r="75%"><stop offset="0" stop-color="#2A1F14"/><stop offset="1" stop-color="#17120D"/></radialGradient>
+    <radialGradient id="l" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#E3A440" stop-opacity=".45"/><stop offset="1" stop-color="#E3A440" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="190" fill="url(#l)"/>
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#C9A06A" stroke-width="6" opacity=".7"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#C9A06A" stroke-width="3" stroke-dasharray="6 12" opacity=".7"/>
+  <polygon points="256,70 282,256 256,256" fill="#E3A440"/>
+  <polygon points="256,70 230,256 256,256" fill="#B07C2C"/>
+  <polygon points="256,442 230,256 256,256" fill="#C9A06A" opacity=".6"/>
+  <polygon points="256,442 282,256 256,256" fill="#C9A06A" opacity=".35"/>
+  <polygon points="70,256 256,230 256,282" fill="#C9A06A" opacity=".45"/>
+  <polygon points="442,256 256,230 256,282" fill="#C9A06A" opacity=".45"/>
+  <circle cx="256" cy="256" r="16" fill="#17120D" stroke="#E8D9B5" stroke-width="6"/>
+</svg>
